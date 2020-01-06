@@ -17,8 +17,12 @@ class ViewController: NSViewController, NSTextFieldDelegate {
     @IBOutlet weak var KeywordsEnter: NSTextField!
     @IBOutlet weak var ArticleTitle: NSTextField!
     @IBOutlet weak var GlossaryList: NSTableView!
+    @IBOutlet weak var SearchField: NSSearchField!
     
     @IBOutlet weak var tableView: NSTableView!
+    
+    var editMode: Bool = false
+    var selected: String? = nil
     
     var entries: [NSManagedObject]? = []
     
@@ -36,7 +40,6 @@ class ViewController: NSViewController, NSTextFieldDelegate {
         self.tableView.dataSource = self
         // Show "nothing selected"
         self.nothingSelected()
-    }
 
     override var representedObject: Any? {
         didSet {
@@ -45,6 +48,7 @@ class ViewController: NSViewController, NSTextFieldDelegate {
     }
     
     func nothingSelected() {
+        self.selected = nil
         // Disable TextEnter until selected
         self.TextEnter.isEditable = false
         self.TextEnter.stringValue = "Nothing selected"
@@ -59,24 +63,38 @@ class ViewController: NSViewController, NSTextFieldDelegate {
         self.ArticleTitle.isEditable = false
     }
     
-    @IBAction func AddButtonPressed(_ sender: NSButton) {
+    func somethingSelected(name: String?) {
+        self.selected = name
         // Enable Textfields
         self.ArticleTitle.isEditable = true
         self.TextEnter.isEditable = true
         self.KeywordsEnter.isEditable = true
         // Reset for new input
+        self.TextEnter.alignment = .left
+        self.TextEnter.textColor = NSColor.black
+        self.KeywordsEnter.alignment = .left
+        self.KeywordsEnter.textColor = NSColor.black
+    }
+    
+    func control(_ control: NSControl, textShouldBeginEditing fieldEditor: NSText) -> Bool {
+        self.editMode(enabled: false)
+        return true
+    }
+    
+    @IBAction func AddButtonPressed(_ sender: NSButton) {
+        // Disable UI
+        self.editMode(enabled: false)
+        self.somethingSelected(name: nil)
         self.ArticleTitle.stringValue = "New Title"
         self.ArticleTitle.becomeFirstResponder()
         self.TextEnter.stringValue = ""
-        self.TextEnter.alignment = .left
-        self.TextEnter.textColor = NSColor.black
         self.KeywordsEnter.stringValue = ""
-        self.KeywordsEnter.alignment = .left
-        self.KeywordsEnter.textColor = NSColor.black    }
+    }
     
     @IBAction func DeleteButtonPressed(_ sender: NSButton) {
-        self.deleteEntry()
+        self.deleteEntry(name: self.selected)
         self.reloadFileList()
+        self.nothingSelected()
     }
     
     @IBAction func textFieldAction(sender: NSTextField) {
@@ -90,8 +108,19 @@ class ViewController: NSViewController, NSTextFieldDelegate {
             }
             else if(self.KeywordsEnter == sender){
                 // Save and add to tableview
-                self.saveEntry()
-                self.reloadFileList()
+                let success: Bool = self.saveEntry()
+                if success {
+                    self.deleteEntry(name: self.selected)
+                    self.reloadFileList()
+                    self.editMode(enabled: true)
+                    self.nothingSelected()
+                }
+                else{
+                    let msg: String = "Maybe the article title already exists?"
+                    _ = self.dialogOKCancel(question: "Unable to save", text: msg)
+                    self.ArticleTitle.becomeFirstResponder()
+                }
+                
             }
         }
     }
@@ -116,6 +145,8 @@ class ViewController: NSViewController, NSTextFieldDelegate {
         self.ArticleTitle.stringValue = name
         self.TextEnter.stringValue = text
         self.KeywordsEnter.stringValue = keywords
+        
+        self.somethingSelected(name: name)
     }
     
     func reloadFileList() {
@@ -123,14 +154,21 @@ class ViewController: NSViewController, NSTextFieldDelegate {
         tableView.reloadData()
     }
     
-    func saveEntry() {
-        
+    func saveEntry() -> Bool {
         let name: String = self.ArticleTitle.stringValue
         let text: String = self.TextEnter.stringValue
         let keywords: String = self.KeywordsEnter.stringValue
         
+        if let currentEntries = self.entries {
+            for entry in currentEntries {
+                if entry.value(forKey: "name") as! String == name {
+                    return false
+                }
+            }
+        }
+        
         guard let appDelegate = NSApp.delegate as? AppDelegate else {
-                return
+            return false
         }
 
         let managedContext =
@@ -151,11 +189,13 @@ class ViewController: NSViewController, NSTextFieldDelegate {
         } catch let error as NSError {
             print("Could not save. \(error), \(error.userInfo)")
         }
+        return true
     }
     
-    func deleteEntry(){
-        let name: String = self.ArticleTitle.stringValue
-        
+    func deleteEntry(name: String?){
+        guard let selected = name else {
+            return
+        }
         guard let appDelegate = NSApp.delegate as? AppDelegate else {
             return
         }
@@ -166,14 +206,12 @@ class ViewController: NSViewController, NSTextFieldDelegate {
             NSFetchRequest<NSManagedObject>(entityName: "Entry")
         guard let result = try? managedContext.fetch(fetchRequest) else { return }
         for object in result {
-            if object.value(forKey: "name") as! String == name {
+            if object.value(forKey: "name") as! String == selected {
                 managedContext.delete(object)
             }
         }
         do {
             try managedContext.save()
-            self.updateEntries()
-            self.nothingSelected()
         } catch let error as NSError {
             print("Could not save. \(error), \(error.userInfo)")
         }
@@ -193,6 +231,22 @@ class ViewController: NSViewController, NSTextFieldDelegate {
         } catch let error as NSError {
             print("Could not fetch. \(error), \(error.userInfo)")
         }
+    }
+    
+    func editMode(enabled: Bool){
+        self.tableView.isEnabled = enabled
+        self.SearchField.isEnabled = enabled
+        self.AddButton.isEnabled = enabled
+        self.DeleteButton.isEnabled = enabled
+    }
+
+    func dialogOKCancel(question: String, text: String) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = question
+        alert.informativeText = text
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
 

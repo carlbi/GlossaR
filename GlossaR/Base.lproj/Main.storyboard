@@ -843,7 +843,7 @@
                                     <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                                 </textFieldCell>
                                 <connections>
-                                    <action selector="textFieldActionWithSender:" target="XfG-lQ-9wD" id="GL8-NW-5C8"/>
+                                    <action selector="textFieldActionWithSender:" target="XfG-lQ-9wD" id="daq-B3-Ozd"/>
                                 </connections>
                             </textField>
                         </subviews>
@@ -880,6 +880,7 @@
                         <outlet property="DeleteButton" destination="96j-3M-KkN" id="Icq-Uh-V3V"/>
                         <outlet property="GlossaryList" destination="chv-QC-EK9" id="eSd-Ph-Gc3"/>
                         <outlet property="KeywordsEnter" destination="Xed-yq-niY" id="jdj-Mn-hns"/>
+                        <outlet property="SearchField" destination="tTd-6b-0EJ" id="Tfg-Br-GTe"/>
                         <outlet property="TextEnter" destination="xjS-Rs-0QY" id="LiF-Sb-gHM"/>
                         <outlet property="tableView" destination="chv-QC-EK9" id="may-R6-IoM"/>
                     </connections>
